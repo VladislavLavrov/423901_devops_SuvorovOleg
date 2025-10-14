@@ -6,11 +6,11 @@
 <form method="post" asp-controller="Calculator" asp-action="Calculate">
     @Html.AntiForgeryToken()
     <input type="text" name="num1" value="@ViewBag.Num1" required />
-    <select name="operation" required>
-        <option value="Add">+</option>
-        <option value="Subtract">-</option>
-        <option value="Multiply">*</option>
-        <option value="Divide">/</option>
+    <select name="operation" id="operation" required>
+        <option value="Add" selected="@(ViewBag.Operation?.ToString() == "Add")">+</option>
+        <option value="Subtract" selected="@(ViewBag.Operation?.ToString() == "Subtract")">-</option>
+        <option value="Multiply" selected="@(ViewBag.Operation?.ToString() == "Multiply")">*</option>
+        <option value="Divide" selected="@(ViewBag.Operation?.ToString() == "Divide")">/</option>
     </select>
     <input type="text" name="num2" value="@ViewBag.Num2" required />
     <input type="submit" value="Calculate" />
@@ -24,7 +24,3 @@ else if (ViewBag.Result != null)
 {
     <h3>Result: @ViewBag.Result</h3>
 }
-
-<footer style="margin-top: 50px; padding: 20px; background-color: #f8f9fa; text-align: center;">
-    <p>@ViewBag.StudentInfo</p>
-</footer>

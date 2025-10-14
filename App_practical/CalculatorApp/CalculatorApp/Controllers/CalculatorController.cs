@@ -11,7 +11,6 @@ namespace CalculatorApp.Controllers
         [HttpGet]
         public IActionResult Index()
         {
-            ViewBag.StudentInfo = "ФИО: Суворов Олег Андреевич, Группа: НМТ-423901";
             return View();
         }
         [HttpPost]
@@ -42,9 +41,9 @@ namespace CalculatorApp.Controllers
             }
 
             ViewBag.Result = result;    
-            ViewBag.StudentInfo = "ФИО: Суворов Олег Андреевич, Группа: НМТ-423901";
             ViewBag.Num1 = num1; // Сохраняем значения для формы
             ViewBag.Num2 = num2; // Сохраняем значения для формы
+            ViewBag.Operation = operation;
             return View("Index");
         }
     }
