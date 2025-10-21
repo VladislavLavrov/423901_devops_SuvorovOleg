@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace CalculatorApp.Controllers
+namespace Calculator_16.Controllers
 {
     public enum Operation
     {
