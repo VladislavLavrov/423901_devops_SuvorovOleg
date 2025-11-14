@@ -1,3 +1,6 @@
+using Calculator_16.Data;
+using Calculator_16.Models;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Calculator_16.Controllers
@@ -8,6 +11,13 @@ namespace Calculator_16.Controllers
     }
     public class CalculatorController : Controller
     {
+        private CalculatorContext _context;
+            
+        public CalculatorController(CalculatorContext context)
+        {
+            _context = context;
+        }
+
         [HttpGet]
         public IActionResult Index()
         {
@@ -40,10 +50,19 @@ namespace Calculator_16.Controllers
                     break;
             }
 
-            ViewBag.Result = result;    
-            ViewBag.Num1 = num1; // Сохраняем значения для формы
-            ViewBag.Num2 = num2; // Сохраняем значения для формы
-            ViewBag.Operation = operation;
+            // Сохранение в базу данных
+            var dataInputVariant = new DataInputVariant
+            {
+                Operand_1 = num1.ToString(),
+                Operand_2 = num2.ToString(),
+                Type_operation = operation.ToString(),
+                Result = result.ToString()
+            };
+
+            _context.DataInputVariants.Add(dataInputVariant);
+            _context.SaveChanges();
+
+            ViewBag.Result = result;
             return View("Index");
         }
     }

@@ -11,4 +11,4 @@ RUN dotnet publish "./Calculator_16.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish ./
-ENTRYPOINT ["dotnet", "Calculator_16.dll"]
+ENTRYPOINT ["dotnet", "Calculator_16.dll"]	
