@@ -2,6 +2,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 
+string mariadbCS = builder.Configuration.GetConnectionString("DefaultConnection");
+
+builder.Services.AddRazorPages();
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
