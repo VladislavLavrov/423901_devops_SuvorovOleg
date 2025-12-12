@@ -7,38 +7,42 @@ services:
     ports:
       - "5016:5016"
     networks:
-      - metrics-net
+      - metrics-net-16
 
   # Prometheus
   prometheus:
     image: prom/prometheus:latest
     user: root
     volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/config/:/etc/prometheus/
       - ./prometheus/data:/prometheus:rw
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     ports:
-      - "9090:9090"
+      - "9116:9090"
+    depends_on:
+      - web
     networks:
-      - metrics-net
+      - metrics-net-16
 
   renderer:
     image: grafana/grafana-image-renderer:latest
     ports:
-      - 9000:8081
+      - 5066:8081
     networks:
-      - metrics-net
+      - metrics-net-16
       
   # Grafana
   grafana:
     image: grafana/grafana:latest
+    user: root
     depends_on:
       - prometheus
       - renderer
     ports:
-      - "3000:3000"      
+      - "3016:3000"      
     volumes:
       - ./grafana/data:/var/lib/grafana:rw
     environment:
@@ -46,9 +50,9 @@ services:
       GF_RENDERING_CALLBACK_URL: http://grafana:3000/
       GF_LOG_FILTERS: rendering:debug
     networks:
-      - metrics-net
+      - metrics-net-16
 
 
 networks:
-  metrics-net:
-    name: metrics-net
+  metrics-net-16:
+    name: metrics-net-16
