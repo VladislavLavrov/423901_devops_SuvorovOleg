@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Оптимизация нагрева печи</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: inline-block; width: 200px; }
+        input { width: 100px; padding: 5px; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <h1>Расчет оптимальных параметров нагрева</h1>
+    <form method="post" action="{% url 'calculate' %}">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="P_min">Мин. мощность (Вт):</label>
+            <input type="number" id="P_min" name="P_min" min="500" max="10000" step="100" value="1000" required>
+            <label for="P_max">Макс. мощность (Вт):</label>
+            <input type="number" id="P_max" name="P_max" min="500" max="10000" step="100" value="5000" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="v_min">Мин. скорость (м/с):</label>
+            <input type="number" id="v_min" name="v_min" min="0.1" max="5" step="0.1" value="0.5" required>
+            <label for="v_max">Макс. скорость (м/с):</label>
+            <input type="number" id="v_max" name="v_max" min="0.1" max="5" step="0.1" value="2.0" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="t_min">Мин. время (с):</label>
+            <input type="number" id="t_min" name="t_min" min="10" max="10000" step="10" value="60" required>
+            <label for="t_max">Макс. время (с):</label>
+            <input type="number" id="t_max" name="t_max" min="10" max="10000" step="10" value="3600" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="d_min">Мин. расстояние (м):</label>
+            <input type="number" id="d_min" name="d_min" min="0.01" max="1" step="0.01" value="0.05" required>
+            <label for="d_max">Макс. расстояние (м):</label>
+            <input type="number" id="d_max" name="d_max" min="0.01" max="1" step="0.01" value="0.3" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="w1">Весовой коэффициент 1:</label>
+            <input type="number" id="w1" name="w1" min="0.01" max="1" step="0.01" value="0.7" required>
+            <label for="w2">Весовой коэффициент 2:</label>
+            <input type="number" id="w2" name="w2" min="0.01" max="1" step="0.01" value="0.3" required>
+        </div>
+
+        <div class="form-group">
+            <label for="alpha1">Коэффициент подводимого тепла, °С·м²/(Вт·с):</label>
+            <input type="number" id="alpha1" name="alpha1" 
+                min="0.00001" max="1" step="0.00001" 
+                value="0.00002" required
+                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
+            
+            <label for="alpha2">Коэффициент охлаждения конвекцией, °С/(м/с·с):</label>
+            <input type="number" id="alpha2" name="alpha2" 
+                min="0.00001" max="1" step="0.00001"
+                value="0.0001" required
+                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');">
+        </div>
+
+
+        <div class="form-group">
+            <label for="R_max">Критический темп нагрева, °С/с:</label>
+            <input type="number" id="R_max" name="R_max" min="1" max="100" step="0.01" value="10" required>
+            <label for="C">Теплоёмкость материала, Дж/(кг·°С):</label>
+            <input type="number" id="C" name="C" min="0.01" max="2000" step="0.01" value="460" required>
+        </div>
+
+        <div class="form-group">
+            <label for="m">Масса заготовки, кг:</label>
+            <input type="number" id="m" name="m" min="1" max="1000" value="5" required>
+            <label for="T_init">Начальная температура, °С:</label>
+            <input type="number" id="T_init" name="T_init" min="0" max="100" step="1" value="20" required>
+        </div>
+
+        <div class="form-group">
+            <label for="T_target">Целевая (заданная) температура нагрева, °С:</label>
+            <input type="number" id="T_target" name="T_target" min="100" max="1000" step="1" value="800" required>
+            <label for="T_max">Максимальная температура нагрева, °С:</label>
+            <input type="number" id="T_max" name="T_max" min="100" max="1000" step="1" value="820" required>
+        </div>
+
+        <h2>Параметры КПД</h2>
+        <div class="form-group">
+            <label for="η0">Базовый КПД:</label>
+            <input type="number" id="η0" name="η0" min="0.1" max="1" step="0.01" value="0.8" required>
+            <label for="kv">kv:</label>
+            <input type="number" id="kv" name="kv" min="0" max="1" step="0.01" value="0.1" required>
+        </div>
+
+        <div class="form-group">
+            <label for="β">β:</label>
+            <input type="number" id="B" name="B" min="0" max="10" step="1" value="5" required>
+            <label for="vo">vo:</label>
+            <input type="number" id="vo" name="vo" min="0" max="10" step="1" value="1" required>
+        </div>
+
+        <div class="form-group">
+            <label for="kd">kd:</label>
+            <input type="number" id="kd" name="kd" min="0" max="1" step="0.01" value="0.05" required>
+            <label for="do">do:</label>
+            <input type="number" id="do" name="do" min="0" max="1" step="0.01" value="0.15" required>
+        </div>
+        <button type="submit">Рассчитать</button>
+    </form>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Результаты расчета</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .results { background: #f9f9f9; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        .result-item { margin: 10px 0; }
+        .back-btn { display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; }
+        .plot-container { margin-bottom: 40px; }
+        .plot-2d { width: 100%; height: 400px; }
+        .plot-3d { width: 100%; height: 850px; } /* Увеличенная высота для 3D графиков */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        h2 { margin-top: 30px; }
+    </style>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Оптимальные параметры нагрева</h1>
+    <div class="results">
+        <div class="result-item"><strong>Мощность нагрева:</strong> {{ results.optimal_P }} Вт</div>
+        <div class="result-item"><strong>Скорость циркуляции:</strong> {{ results.optimal_v }} м/с</div>
+        <div class="result-item"><strong>Время выдержки:</strong> {{ results.optimal_t }} с</div>
+        <div class="result-item"><strong>Расстояние до ТЭНов:</strong> {{ results.optimal_d }} м</div>
+        <div class="result-item"><strong>Значение целевой функции:</strong> {{ results.min_value }}</div>
+        <h2>Проверка ограничений:</h2>
+        <p>Внутренняя температура: {{ results.max_temperature|floatformat:2 }} °C 
+        (макс. допустимая: {{ params.T_max }} °C)</p>
+        <p>Темп нагрева: {{ results.heating_rate|floatformat:2 }} °C/с 
+        (Критический темп нагрева: {{ params.R_max }} °C/с)</p>
+        <p>Ошибка теплового баланса: {{ results.balance_error|floatformat:2 }} Дж</p>
+    </div>
+    
+    <h2>Графики целевой функции</h2>
+    <div class="plot-container" id="plot2d_0"></div>
+    <div class="plot-container" id="plot2d_1"></div>
+    <div class="plot-container" id="plot2d_2"></div>
+    <div class="plot-container" id="plot2d_3"></div>
+    
+    <div class="plot-container plot-3d" id="plot3d_pv"></div>
+    <div class="plot-container plot-3d" id="plot3d_td"></div>
+    
+    <a href="{% url 'index' %}" class="back-btn">Новый расчет</a>
+    {{ params|json_script:"params-data" }}
+    {{ results|json_script:"results-data" }}
+    <script>
+        const params = JSON.parse(document.getElementById('params-data').textContent);
+        const results = JSON.parse(document.getElementById('results-data').textContent);
+        // Функции из optimization.py
+        function eta(v, d, η0, kv, β, vo, kd, d0) {
+            return η0 + kv * Math.tanh(β * (v - vo)) - kd * (d - d0);
+        }
+        function objective(x, w1, w2) {
+            const [P, v, t, d] = x;
+            const uniformity = 50.0 / (P * t / 1e6);
+            const energy = P * t / 1e6;
+            return w1 * uniformity + w2 * energy;
+        }
+        const x_opt = [
+            parseFloat(results.optimal_P),
+            parseFloat(results.optimal_v),
+            parseFloat(results.optimal_t),
+            parseFloat(results.optimal_d)
+        ];
+        const J_opt = parseFloat(results.min_value);
+        const bounds = [
+            [params.P_min, params.P_max],
+            [params.v_min, params.v_max],
+            [params.t_min, params.t_max],
+            [params.d_min, params.d_max]
+        ];
+        const vars_full = [
+            ["Мощность нагрева P, Вт", "P"],
+            ["Скорость циркуляции воздуха v, м/с", "v"],
+            ["Время выдержки t, с", "t"],
+            ["Расстояние до ТЭНов d, м", "d"]
+        ];
+        // Функция для округления до N знаков после запятой
+        function roundTo(value, decimals) {
+            return parseFloat(value.toFixed(decimals));
+        };
+        // 2D графики
+        for (let i = 0; i < 4; i++) {
+            let x_vals = [], y_vals = [];
+            for (let val = bounds[i][0]; val <= bounds[i][1]; val += (bounds[i][1] - bounds[i][0]) / 100) {
+                let x_temp = x_opt.slice();
+                x_temp[i] = val;
+                x_vals.push(val);
+                // Округляем значение функции до 2 знаков (как у точки оптимума)
+                y_vals.push(roundTo(objective(x_temp, params.w1, params.w2), 2));
+            }
+            Plotly.newPlot('plot2d_' + i, [
+                {
+                    x: x_vals,
+                    y: y_vals,
+                    type: 'scatter',
+                    name: 'J'
+                },
+                {
+                    x: [x_opt[i]],
+                    y: [J_opt],
+                    mode: 'markers',
+                    marker: {color: 'red', size: 10},
+                    name: 'Оптимум'
+                }
+            ], {
+                title: `Зависимость целевой функции от ${vars_full[i][0]}`,
+                xaxis: {title: vars_full[i][0]},
+                yaxis: {title: 'Целевая функция J'},
+                legend: {orientation: 'h'}
+            });
+        }
+        // 3D график J(P, v)
+        let P_vals = [], v_vals = [], J_Pv = [];
+        for (let i = 0; i < 40; i++) {
+            let rowP = [], rowV = [], rowJ = [];
+            let P = bounds[0][0] + (bounds[0][1] - bounds[0][0]) * i / 39;
+            for (let j = 0; j < 40; j++) {
+                let v = bounds[1][0] + (bounds[1][1] - bounds[1][0]) * j / 39;
+                rowP.push(P);
+                rowV.push(v);
+                rowJ.push(objective([P, v, x_opt[2], x_opt[3]], params.w1, params.w2));
+            }
+            P_vals.push(rowP);
+            v_vals.push(rowV);
+            J_Pv.push(rowJ);
+        }
+        Plotly.newPlot('plot3d_pv', [
+            {
+                x: P_vals.flat(),
+                y: v_vals.flat(),
+                z: J_Pv.flat(),
+                type: 'mesh3d',
+                opacity: 0.7,
+                name: 'J'
+            },
+            {
+                x: [x_opt[0]],
+                y: [x_opt[1]],
+                z: [J_opt],
+                mode: 'markers',
+                marker: {color: 'red', size: 5},
+                type: 'scatter3d',
+                name: 'Оптимум'
+            }
+        ], {
+            title: 'Зависимость целевой функции от мощности и скорости циркуляции',
+            scene: {
+                xaxis: {title: 'Мощность нагрева P, Вт'},
+                yaxis: {title: 'Скорость циркуляции воздуха v, м/с'},
+                zaxis: {title: 'Целевая функция'}
+            }
+        });
+        // 3D график J(t, d)
+        let t_vals = [], d_vals = [], J_td = [];
+        for (let i = 0; i < 40; i++) {
+            let rowT = [], rowD = [], rowJ = [];
+            let t = bounds[2][0] + (bounds[2][1] - bounds[2][0]) * i / 39;
+            for (let j = 0; j < 40; j++) {
+                let d = bounds[3][0] + (bounds[3][1] - bounds[3][0]) * j / 39;
+                rowT.push(t);
+                rowD.push(d);
+                rowJ.push(objective([x_opt[0], x_opt[1], t, d], params.w1, params.w2));
+            }
+            t_vals.push(rowT);
+            d_vals.push(rowD);
+            J_td.push(rowJ);
+        }
+        Plotly.newPlot('plot3d_td', [
+            {
+                x: t_vals.flat(),
+                y: d_vals.flat(),
+                z: J_td.flat(),
+                type: 'mesh3d',
+                opacity: 0.7,
+                name: 'J'
+            },
+            {
+                x: [x_opt[2]],
+                y: [x_opt[3]],
+                z: [J_opt],
+                mode: 'markers',
+                marker: {color: 'red', size: 5},
+                type: 'scatter3d',
+                name: 'Оптимум'
+            }
+        ], {
+            title: 'Зависимость целевой функции от времени выдержки и расстояния до ТЭНов',
+            scene: {
+                xaxis: {title: 'Время выдержки t, с'},
+                yaxis: {title: 'Расстояние до ТЭНов d, м'},
+                zaxis: {title: 'Целевая функция'}
+            }
+        });
+    </script>
+</body>
+</html>
