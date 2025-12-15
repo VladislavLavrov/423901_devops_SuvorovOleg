@@ -11,7 +11,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t furnace_app .'
+                sh 'docker build -t furnace_app -f App_home/furnace_optimizer/Dockerfile .'
             }
         }
 
