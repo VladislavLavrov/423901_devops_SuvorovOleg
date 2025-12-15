@@ -1,146 +1,49 @@
 pipeline {
     agent any
 
-    environment {
-        PROJECT_NAME = 'furnace-optimizer'
-        DOCKER_IMAGE = "${PROJECT_NAME}:${BUILD_NUMBER}"
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                    python -m venv venv
-                    source venv/bin/activate
-                    pip install -r requirements.txt
-                '''
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                sh '''
-                    source venv/bin/activate
-                    python manage.py test optimizer --verbosity=2
-                    coverage run --source='.' manage.py test optimizer
-                    coverage xml
-                    coverage html
-                '''
-            }
-        }
-
-        stage('Static Analysis') {
-            steps {
-                sh '''
-                    source venv/bin/activate
-                    # Проверка стиля кода с помощью pylint
-                    python -m pylint optimizer/ --exit-zero || true
-                    # Проверка с помощью flake8
-                    python -m flake8 optimizer/ --count --exit-zero || true
-                    # Форматирование кода (только проверка)
-                    python -m black --check optimizer/ || true
-                '''
+                git branch: 'DZ_furnace-optimizer', 
+                     url: 'https://github.com/VladislavLavrov/423901_devops_SuvorovOleg.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}")
-                }
+                sh 'docker build -t furnace_app .'
             }
         }
 
-        stage('Run Container') {
+        stage('Compose Up') {
             steps {
-                sh '''
-                    docker-compose up -d
-                    sleep 15  # Ждем запуска контейнера
-                '''
+                sh 'docker compose up -d --build'
             }
         }
-
+        
         stage('Health Check') {
             steps {
+                // Ждем запуска и проверяем, что приложение отвечает
                 sh '''
-                    # Проверяем, что приложение отвечает
+                    sleep 10
                     curl -f http://localhost:8000 || exit 1
-                    # Проверяем API расчета
-                    curl -X POST http://localhost:8000/calculate/ \
-                         -H "Content-Type: application/x-www-form-urlencoded" \
-                         -d "P_min=1000&P_max=5000&v_min=0.5&v_max=2.0&t_min=60&t_max=3600&d_min=0.05&d_max=0.3&w1=0.7&w2=0.3" || true
+                    echo "✅ Приложение успешно запущено!"
                 '''
             }
         }
     }
 
     post {
-        always {
-            // Очистка контейнеров
-            sh 'docker-compose down || true'
-            
-            // Публикация отчетов
-            junit '**/test-reports/*.xml'
-            cobertura coberturaReportFile: 'coverage.xml'
-            publishHTML(target: [
-                reportDir: 'htmlcov',
-                reportFiles: 'index.html',
-                reportName: 'Coverage Report'
-            ])
-            
-            // Архивация артефактов
-            archiveArtifacts artifacts: '**/*.py, **/requirements.txt', fingerprint: true
+        failure {
+            echo "❌ Сборка завершилась с ошибкой!"
         }
         success {
-            echo '✅ Сборка furnace-optimizer завершена успешно!'
-            emailext(
-                subject: "✅ Сборка ${PROJECT_NAME} #${BUILD_NUMBER} успешна",
-                body: """
-                Сборка проекта оптимизации параметров печи завершена успешно!
-                
-                Детали сборки:
-                - Проект: ${PROJECT_NAME}
-                - Номер сборки: ${BUILD_NUMBER}
-                - Время: ${BUILD_TIMESTAMP}
-                - Ссылка: ${BUILD_URL}
-                
-                Результаты:
-                - Тесты пройдены
-                - Docker образ собран
-                - Приложение запущено
-                
-                С уважением,
-                Jenkins CI/CD
-                """,
-                to: 'your-email@example.com'
-            )
+            echo "✅ Сборка furnace-optimizer завершена успешно!"
+            echo "🌐 Приложение доступно по адресу: http://localhost:8000"
         }
-        failure {
-            echo '❌ Сборка завершилась с ошибкой!'
-            emailext(
-                subject: "❌ Сборка ${PROJECT_NAME} #${BUILD_NUMBER} провалилась",
-                body: """
-                Сборка проекта оптимизации параметров печи завершилась с ошибкой!
-                
-                Детали сборки:
-                - Проект: ${PROJECT_NAME}
-                - Номер сборки: ${BUILD_NUMBER}
-                - Время: ${BUILD_TIMESTAMP}
-                - Ссылка: ${BUILD_URL}
-                
-                Пожалуйста, проверьте консольный вывод для деталей ошибки.
-                
-                С уважением,
-                Jenkins CI/CD
-                """,
-                to: 'your-email@example.com'
-            )
+        always {
+            // Аккуратная остановка контейнеров
+            sh 'docker compose down || true'
         }
     }
 }

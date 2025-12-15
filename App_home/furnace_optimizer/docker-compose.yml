@@ -1,14 +1,10 @@
-version: '3.8'
+version: "3.9"
 
 services:
   web:
     build: .
+    container_name: furnace_app
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
-      - ./logs:/app/logs
-    environment:
-      - DEBUG=True
-      - PYTHONUNBUFFERED=1
-      - DJANGO_SETTINGS_MODULE=furnace_optimizer.settings
+    # Команда для запуска Django без миграций
+    command: python manage.py runserver 0.0.0.0:8000

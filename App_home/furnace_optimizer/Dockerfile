@@ -1,29 +1,24 @@
-# Используем официальный Python образ
+# Базовый образ с Python
 FROM python:3.11-slim
 
-# Устанавливаем рабочую директорию
-WORKDIR /app
-
-# Устанавливаем системные зависимости для научных вычислений
+# Устанавливаем только системные зависимости для SciPy/NumPy
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Копируем зависимости
-COPY requirements.txt /app/
+# Создаём рабочую директорию
+WORKDIR /app
 
-# Устанавливаем Python зависимости
+# Копируем и устанавливаем зависимости
+COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем проект
+# Копируем весь проект
 COPY . /app/
 
-# Создаем директорию для логов
-RUN mkdir -p /app/logs
-
-# Открываем порт
+# Открываем порт Django
 EXPOSE 8000
 
-# Запускаем сервер
+# Команда запуска
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
