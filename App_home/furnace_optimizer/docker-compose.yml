@@ -1,10 +1,14 @@
 version: "3.9"
-
 services:
   web:
     build: .
     container_name: furnace_app
     ports:
       - "8000:8000"
-    # Команда для запуска Django без миграций
-    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./db.sqlite3:/app/db.sqlite3  # Сохраняем базу на хосте
+    command: >
+      sh -c "
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "

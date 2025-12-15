@@ -1,24 +1,12 @@
-# Базовый образ с Python
 FROM python:3.11-slim
-
-# Устанавливаем только системные зависимости для SciPy/NumPy
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Создаём рабочую директорию
+RUN apt-get update && apt-get install -y gcc g++ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-
-# Копируем и устанавливаем зависимости
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Копируем весь проект
 COPY . /app/
 
-# Открываем порт Django
-EXPOSE 8000
+# Создаем базу данных и применяем миграции при сборке
+RUN python manage.py migrate --noinput
 
-# Команда запуска
+EXPOSE 8000
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
