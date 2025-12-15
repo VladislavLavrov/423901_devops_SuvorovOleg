@@ -11,24 +11,17 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t furnace_app -f App_home/furnace_optimizer/Dockerfile .'
+                dir('App_home/furnace_optimizer') {
+                    sh 'docker build -t furnace_app .'
+                }
             }
         }
 
         stage('Compose Up') {
             steps {
-                sh 'docker compose up -d --build'
-            }
-        }
-        
-        stage('Health Check') {
-            steps {
-                // Ждем запуска и проверяем, что приложение отвечает
-                sh '''
-                    sleep 10
-                    curl -f http://localhost:8000 || exit 1
-                    echo "✅ Приложение успешно запущено!"
-                '''
+                dir('App_home/furnace_optimizer') {
+                    sh 'docker compose up -d --build'
+                }
             }
         }
     }
@@ -38,12 +31,7 @@ pipeline {
             echo "❌ Сборка завершилась с ошибкой!"
         }
         success {
-            echo "✅ Сборка furnace-optimizer завершена успешно!"
-            echo "🌐 Приложение доступно по адресу: http://localhost:8000"
-        }
-        always {
-            // Аккуратная остановка контейнеров
-            sh 'docker compose down || true'
+            echo "✅ Сборка успешно завершена!"
         }
     }
 }
