@@ -11,10 +11,9 @@ services:
       POSTGRES_PASSWORD: furnace_password_123
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
-      - "5432:5432"
+      - "5416:5432"  # ИЗМЕНИЛИ ПОРТ! 5433 на хосте -> 5432 в контейнере
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres_init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U furnace_user -d furnace_db"]
       interval: 10s
@@ -42,8 +41,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      - DEBUG=${DEBUG:-0}
-      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=1
+      - SECRET_KEY=q+^w)ia%l2qzs+hb9+f4kxmjxj5icja!n6eg4s0o!5-$etq9(^
       - DB_HOST=postgres
       - DB_PORT=5432
       - POSTGRES_DB=furnace_db
