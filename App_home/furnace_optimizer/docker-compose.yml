@@ -9,54 +9,36 @@ services:
       POSTGRES_DB: furnace_db
       POSTGRES_USER: furnace_user
       POSTGRES_PASSWORD: furnace_password_123
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
-      - "5416:5432"  # ИЗМЕНИЛИ ПОРТ! 5433 на хосте -> 5432 в контейнере
+      - "5416:5432"  # PostgreSQL на порту 5433
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U furnace_user -d furnace_db"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
-    networks:
-      - furnace_network
 
   web:
     build: .
     container_name: furnace_web
-    restart: unless-stopped
     command: >
-      sh -c "python manage.py wait_for_db &&
-             python manage.py migrate --no-input &&
-             python manage.py collectstatic --no-input --clear &&
-             gunicorn furnace_optimizer.wsgi:application --bind 0.0.0.0:8000 --workers 3"
-    volumes:
-      - .:/app
-      - static_volume:/app/static
-      - media_volume:/app/media
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
     ports:
-      - "8000:8000"
+      - "8016:8000"
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      - DEBUG=1
-      - SECRET_KEY=q+^w)ia%l2qzs+hb9+f4kxmjxj5icja!n6eg4s0o!5-$etq9(^
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - POSTGRES_DB=furnace_db
-      - POSTGRES_USER=furnace_user
-      - POSTGRES_PASSWORD=furnace_password_123
-      - ALLOWED_HOSTS=localhost,127.0.0.1,93.88.178.186
-    networks:
-      - furnace_network
+      DEBUG: "1"
+      SECRET_KEY: "django-insecure-backup-key-change-in-production"
+      DB_HOST: "postgres"
+      POSTGRES_DB: "furnace_db"
+      POSTGRES_USER: "furnace_user"
+      POSTGRES_PASSWORD: "furnace_password_123"
+    volumes:
+      - .:/app
 
 volumes:
   postgres_data:
-  static_volume:
-  media_volume:
-
-networks:
-  furnace_network:
-    driver: bridge
