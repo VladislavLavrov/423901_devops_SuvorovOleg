@@ -1,14 +1,63 @@
-version: "3.9"
+version: '3.9'
+
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: furnace_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: furnace_db
+      POSTGRES_USER: furnace_user
+      POSTGRES_PASSWORD: furnace_password_123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U furnace_user -d furnace_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - furnace_network
+
   web:
     build: .
-    container_name: furnace_app
+    container_name: furnace_web
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py wait_for_db &&
+             python manage.py migrate --no-input &&
+             python manage.py collectstatic --no-input --clear &&
+             gunicorn furnace_optimizer.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    volumes:
+      - .:/app
+      - static_volume:/app/static
+      - media_volume:/app/media
     ports:
       - "8000:8000"
-    volumes:
-      - ./db.sqlite3:/app/db.sqlite3  # Сохраняем базу на хосте
-    command: >
-      sh -c "
-        python manage.py migrate &&
-        python manage.py runserver 0.0.0.0:8000
-      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DEBUG=${DEBUG:-0}
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - POSTGRES_DB=furnace_db
+      - POSTGRES_USER=furnace_user
+      - POSTGRES_PASSWORD=furnace_password_123
+      - ALLOWED_HOSTS=localhost,127.0.0.1,93.88.178.186
+    networks:
+      - furnace_network
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
+
+networks:
+  furnace_network:
+    driver: bridge
