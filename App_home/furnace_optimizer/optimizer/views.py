@@ -40,7 +40,11 @@ def calculate_view(request):
         # Запускаем оптимизацию
         results = optimize_parameters(params)
 
+        print(f"=== DEBUG: Результаты оптимизации получены ===")
+        print(f"Results: {results}")
+
         try:
+
             # Создаем запись в базе данных
             calculation = FurnaceCalculation.objects.create(
                 power_min=params['P_min'],
@@ -69,13 +73,17 @@ def calculate_view(request):
                 d0=params['do']
             )
         
+            print(f"=== DEBUG: Объект создан, id={calculation.id} ===")
+    
             # Сохраняем результаты оптимизации
             calculation.save_results(results)
-        
+            print(f"=== DEBUG: save_results() вызван ===")
+            
         except Exception as e:
-            # Логируем ошибку, но не прерываем выполнение
-            print(f"Ошибка при сохранении в БД: {e}")
-
+            print(f"=== DEBUG: Ошибка при сохранении: {e} ===")
+            import traceback
+            traceback.print_exc()
+            
         # Сохраняем параметры и результаты в сессии для графиков
         request.session['params'] = params
         request.session['results'] = results
