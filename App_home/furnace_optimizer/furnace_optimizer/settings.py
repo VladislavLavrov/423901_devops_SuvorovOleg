@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-12345')
-DEBUG = True    
+DEBUG = True
 ALLOWED_HOSTS = ['93.88.178.186', 'localhost', '127.0.0.1', '0.0.0.0']
 
 # Application definition
@@ -60,7 +60,7 @@ DATABASES = {
         'NAME': 'furnace_db',
         'USER': 'furnace_user',
         'PASSWORD': 'furnace_pass',
-        'HOST': 'postgres', 
+        'HOST': 'furnace_db',
         'PORT': 5432,
     }
 }

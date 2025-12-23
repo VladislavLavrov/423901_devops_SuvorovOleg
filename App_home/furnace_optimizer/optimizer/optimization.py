@@ -110,4 +110,3 @@ def optimize_parameters(params):
         'heating_rate': round(calculate_heating_rate(res.x, alpha1, alpha2), 2),
         'balance_error': round(thermal_balance_error(res.x, C, m, T_target, T_init, η0, kv, β, vo, kd, do), 5)
     }
-    
