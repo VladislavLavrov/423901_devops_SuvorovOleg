@@ -7,6 +7,7 @@ def index_view(request):
     """Главная страница с формой ввода"""
     return render(request, 'optimizer/index.html')
 
+@csrf_exempt
 def calculate_view(request):
     """Обработка расчета и вывод результатов"""
     if request.method == 'POST':
