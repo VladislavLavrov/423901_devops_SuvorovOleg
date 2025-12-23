@@ -1,35 +1,130 @@
 pipeline {
     agent any
-
+    
     stages {
-        stage('Checkout') {
+        stage('Cleanup Old Containers') {
             steps {
+                sh '''
+                    # Останавливаем ВСЕ контейнеры furnace
+                    docker ps -a --filter "name=furnace" -q | xargs -r docker rm -f
+                    
+                    # Освобождаем порт 8016
+                    fuser -k 8016/tcp 2>/dev/null || true
+                '''
+            }
+        }
+        
+        stage('Prepare Workspace') {
+            steps {
+                // Очищаем рабочую директорию
+                deleteDir()
+                
+                // Клонируем заново
                 git branch: 'DZ_furnace-optimizer', 
-                     url: 'https://github.com/VladislavLavrov/423901_devops_SuvorovOleg.git'
+                     url: 'https://github.com/VladislavLavrov/423901_devops_SuvorovOleg.git',
+                     poll: false
             }
         }
-
-        stage('Build Docker Image') {
+        
+        stage('Deploy Application') {
             steps {
-                dir('App_home/furnace_optimizer') {
-                    sh 'docker build -t furnace_app .'
+                script {
+                    // Переходим в директорию проекта
+                    dir('App_home/furnace_optimizer') {
+                        
+                        // 1. Останавливаем если что-то работает
+                        sh 'docker compose down 2>/dev/null || true'
+                        
+                        // 2. Собираем и запускаем
+                        sh '''
+                            docker compose build --no-cache
+                            docker compose up -d
+                            
+                            # Ждем запуска
+                            sleep 30
+                            
+                            # Проверяем статус
+                            echo "=== Статус контейнеров ==="
+                            docker compose ps
+                            
+                            echo "=== Логи приложения (последние 10 строк) ==="
+                            docker compose logs --tail=10 web
+                        '''
+                        
+                        // 3. Проверяем здоровье
+                        sh '''
+                            # Ждем пока приложение станет здоровым
+                            timeout=60
+                            while true; do
+                                if curl -s -f http://localhost:8016 > /dev/null; then
+                                    echo "✅ Приложение работает!"
+                                    break
+                                fi
+                                
+                                if [ $timeout -le 0 ]; then
+                                    echo "❌ Приложение не запустилось за 60 секунд"
+                                    echo "=== Последние логи ==="
+                                    docker compose logs web
+                                    exit 1
+                                fi
+                                
+                                echo "⏳ Ждем приложение... ($timeout сек осталось)"
+                                sleep 5
+                                timeout=$((timeout-5))
+                            done
+                        '''
+                    }
                 }
             }
         }
-
-        stage('Compose Up') {
+        
+        stage('Verify Deployment') {
             steps {
-                dir('App_home/furnace_optimizer'){
-                    sh 'docker compose up -d --build'
-                }
+                sh '''
+                    echo "=== Финальная проверка ==="
+                    echo "1. Запущенные контейнеры:"
+                    docker ps --filter "name=furnace" --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
+                    
+                    echo ""
+                    echo "2. Проверка доступности:"
+                    curl -s -o /dev/null -w "HTTP код: %{http_code}\\n" http://localhost:8016 || echo "Не доступно"
+                    
+                    echo ""
+                    echo "3. Порт 8016:"
+                    netstat -tulpn | grep :8016 || echo "Порт не занят"
+                '''
             }
         }
     }
-
+    
     post {
+        always {
+            echo "=== Итоговая информация ==="
+            sh '''
+                echo "Время: $(date)"
+                echo "Директория: $(pwd)"
+                echo "Пользователь: $(whoami)"
+            '''
+        }
         failure {
-            dir('App_home/furnace_optimizer'){
-                echo "Build failed"
+            dir('App_home/furnace_optimizer') {
+                sh '''
+                    echo "=== ДЕТАЛЬНЫЕ ЛОГИ ПРИ СБОЕ ==="
+                    echo "1. Все контейнеры:"
+                    docker ps -a
+                    
+                    echo ""
+                    echo "2. Логи приложения:"
+                    docker compose logs web 2>/dev/null || echo "Нет логов приложения"
+                    
+                    echo ""
+                    echo "3. Логи базы данных:"
+                    docker compose logs postgres 2>/dev/null || echo "Нет логов БД"
+                    
+                    echo ""
+                    echo "4. Ошибки Docker:"
+                    docker events --since '5m' --filter 'event=die' 2>/dev/null || true
+                '''
             }
         }
     }
