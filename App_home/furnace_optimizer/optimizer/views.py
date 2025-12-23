@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from .optimization import optimize_parameters
+from .models import FurnaceCalculation
 from django.http import HttpResponse
 
 def index_view(request):
@@ -38,6 +39,43 @@ def calculate_view(request):
         }
         # Запускаем оптимизацию
         results = optimize_parameters(params)
+
+        try:
+            # Создаем запись в базе данных
+            calculation = FurnaceCalculation.objects.create(
+                power_min=params['P_min'],
+                power_max=params['P_max'],
+                velocity_min=params['v_min'],
+                velocity_max=params['v_max'],
+                time_min=params['t_min'],
+                time_max=params['t_max'],
+                thickness_min=params['d_min'],
+                thickness_max=params['d_max'],
+                weight_uniformity=params['w1'],
+                weight_energy=params['w2'],
+                alpha1=params['alpha1'],
+                alpha2=params['alpha2'],
+                max_heating_rate=params['R_max'],
+                heat_capacity=params['C'],
+                mass=params['m'],
+                initial_temperature=params['T_init'],
+                target_temperature=params['T_target'],
+                max_temperature_limit=params['T_max'],
+                eta0=params['η0'],
+                kv=params['kv'],
+                beta=params['β'],
+                v0=params['vo'],
+                kd=params['kd'],
+                d0=params['do']
+            )
+        
+            # Сохраняем результаты оптимизации
+            calculation.save_results(results)
+        
+        except Exception as e:
+            # Логируем ошибку, но не прерываем выполнение
+            print(f"Ошибка при сохранении в БД: {e}")
+
         # Сохраняем параметры и результаты в сессии для графиков
         request.session['params'] = params
         request.session['results'] = results
