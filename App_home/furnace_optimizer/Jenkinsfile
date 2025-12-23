@@ -17,48 +17,20 @@ pipeline {
             }
         }
 
-        stage('Run Container') {
+        stage('Compose Up') {
             steps {
-                dir('App_home/furnace_optimizer') {
-                    sh '''
-                        # Останавливаем старый контейнер если есть
-                        docker stop furnace_app || true
-                        docker rm furnace_app || true
-                        
-                        # Запускаем новый
-                        docker run -d \
-                            --name furnace_app \
-                            --restart unless-stopped \
-                            -p 8000:8000 \
-                            furnace_app
-                    '''
+                dir('App_home/furnace_optimizer'){
+                    sh 'docker compose up -d --build'
                 }
-            }
-        }
-        
-        stage('Health Check') {
-            steps {
-                sh '''
-                    sleep 10
-                    echo "Проверка работы приложения..."
-                    curl -f http://localhost:8000 && \
-                    echo "✅ Приложение работает!" || \
-                    echo "⚠️ Приложение не отвечает"
-                '''
             }
         }
     }
 
     post {
-        success {
-            echo "✅ Сборка успешно завершена!"
-            echo "🌐 Приложение доступно на сервере: http://93.88.178.186:8000"
-            echo "📋 Команда для проверки на сервере: docker ps"
-        }
         failure {
-            echo "❌ Сборка завершилась с ошибкой!"
+            dir('App_home/furnace_optimizer'){
+                echo "Build failed"
+            }
         }
-        // УБИРАЕМ docker compose down!
-        // Контейнер должен остаться запущенным
     }
 }

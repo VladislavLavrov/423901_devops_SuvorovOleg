@@ -1,42 +1,33 @@
-version: '3.9'
+version: "3.9"
 
 services:
   postgres:
-    image: postgres:15-alpine
-    container_name: furnace_postgres
-    restart: unless-stopped
+    image: postgres:15
+    container_name: furnace_db
+    restart: always
     environment:
-      POSTGRES_DB: furnace_db
       POSTGRES_USER: furnace_user
-      POSTGRES_PASSWORD: furnace_password_123
+      POSTGRES_PASSWORD: furnace_pass
+      POSTGRES_DB: furnace_db
     ports:
-      - "5416:5432"  # PostgreSQL на порту 5433
+      - "5416:5432" 
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U furnace_user -d furnace_db"]
+      test: ["CMD-SHELL", "pg_isready -U furnace_user"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 8
 
   web:
     build: .
-    container_name: furnace_web
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+    container_name: furnace_app
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     ports:
-      - "8016:8000"
+      - "8016:8000" 
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      DEBUG: "1"
-      SECRET_KEY: "django-insecure-backup-key-change-in-production"
-      DB_HOST: "postgres"
-      POSTGRES_DB: "furnace_db"
-      POSTGRES_USER: "furnace_user"
-      POSTGRES_PASSWORD: "furnace_password_123"
     volumes:
       - .:/app
 
