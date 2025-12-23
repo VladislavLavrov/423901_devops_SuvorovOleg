@@ -14,7 +14,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U furnace_user"]
+      test: ["CMD-SHELL", "pg_isready -U furnace_user -d furnace_db"]
       interval: 5s
       timeout: 3s
       retries: 8
