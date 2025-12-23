@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect
 from .optimization import optimize_parameters
 from .models import FurnaceCalculation
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+
 
 def index_view(request):
     """Главная страница с формой ввода"""
